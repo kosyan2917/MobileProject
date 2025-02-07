@@ -10,7 +10,7 @@ import MapKit
 import CoreLocation
 class MapViewController: UIViewController {
 
-    var fileName: String?
+    var filename: String?
     var token: String?
     let mapView: MKMapView = {
         let map = MKMapView()
@@ -40,27 +40,6 @@ class MapViewController: UIViewController {
         mapView.centerYAnchor.constraint(equalTo: view.centerYAnchor).isActive = true
     }
     
-    func getGPX() async throws -> Data {
-        guard let token = token else { throw GPXError.fileNameOrTokenEqualsNil }
-        guard let fileName = fileName else { throw GPXError.fileNameOrTokenEqualsNil}
-        let url_string = "http://127.0.0.1:1337/api/files/\(fileName)"
-        print(url_string)
-        guard let url = URL(string: url_string) else { throw URLError(.badURL) }
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue(token, forHTTPHeaderField: "Authorization")
-        print("234")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        print("456")
-        if let httpResponse = response as? HTTPURLResponse {
-            print(httpResponse.statusCode)
-            if httpResponse.statusCode != 200 {
-                throw URLError(.badServerResponse)
-            }
-        }
-        return data
-    }
-    
     func draw(data: Data) {
         gpxParser.parseXML(data: data)
         let waypoints = gpxParser.wayPoints
@@ -86,7 +65,10 @@ class MapViewController: UIViewController {
     
     func makeDotsFromQuery() async {
         do {
-            let data = try await getGPX()
+            guard let token = token else { throw GPXError.fileNameOrTokenEqualsNil }
+            guard let filename = filename else { throw GPXError.fileNameOrTokenEqualsNil}
+            print(filename)
+            let data = try await apiService.getGPX(token: token, filename: filename)
             print(data)
             draw(data: data)
         } catch {

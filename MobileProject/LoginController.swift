@@ -86,47 +86,15 @@ class LoginController: UIViewController {
             showAlert(message: "Пожалуйста, заполните оба поля")
             return
         }
-        do {
-            try sendLoginRequest(username: username, password: passwordText)
-        } catch {
-            showAlert(message: "Возникла ошибка при попытке входа \(error.localizedDescription)")
+        Task {
+            do {
+                let data = try await apiService.login(username: username, password: passwordText)
+                onLoginSuccess(data: data)
+            } catch {
+                showAlert(message: "Возникла ошибка при попытке входа \(error.localizedDescription)")
+            }
         }
         
-    }
-    
-    func sendLoginRequest(username: String, password: String) throws {
-        // Подготовка данных для запроса
-        guard let url = URL(string: "http://127.0.0.1:1337/api/auth") else {throw URLError(.badURL)}
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        let body = "username=\(username)&password=\(password)"
-        request.httpBody = body.data(using: .utf8)
-        // Отправка запроса
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                DispatchQueue.main.async {
-                    self.showAlert(message: "Ошибка: \(error.localizedDescription)")
-                }
-                return
-            }
-            
-            if let response = response as? HTTPURLResponse, response.statusCode == 200 {
-                guard let downloadedData = data else {
-                    DispatchQueue.main.async {
-                        self.showAlert(message: "Данные для входа верны, но ответ от сервера неверный")
-                    }
-                    return
-                }
-                self.onLoginSuccess(data: downloadedData)
-                
-            } else {
-                DispatchQueue.main.async {
-                    self.showAlert(message: "Не удалось войти. Проверьте данные.")
-                }
-            }
-        }
-        task.resume()
     }
     
     func onLoginSuccess(data: Data) {
@@ -155,10 +123,6 @@ class LoginController: UIViewController {
 
 extension LoginController: UITextFieldDelegate {
     
-}
-
-struct loginResponse: Codable {
-    var token: String
 }
 
 extension Notification.Name {

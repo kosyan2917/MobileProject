@@ -18,50 +18,16 @@ class LoggedTracksController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .white
         configureTableView()
-        do {
-            try getFiles()
-            
-        } catch {
-            print("Ошибка в getFiles \(error.localizedDescription)")
+        Task {
+            do {
+                guard let token = token else { throw GPXError.fileNameOrTokenEqualsNil }
+                let data = try await apiService.getFiles(token: token)
+                makeNavigationView(data: data)
+            } catch {
+                print("Ошибка в getFiles \(error.localizedDescription)")
+            }
         }
         
-    }
-    
-    func getFiles() throws {
-        if token != nil {
-            let url_string = "http://127.0.0.1:1337/api/files"
-            guard let url = URL(string: url_string) else {
-                throw URLError(.badURL)
-            }
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
-            request.setValue(token, forHTTPHeaderField: "Authorization")
-            let task = URLSession.shared.dataTask(with: request) { data, response, error in
-                if let error = error {
-                    DispatchQueue.main.async {
-                        self.showAlert(message: "Ошибка: \(error.localizedDescription)")
-                    }
-                    return
-                }
-                if let response = response as? HTTPURLResponse {
-                    if response.statusCode == 200 {
-                        guard let downloadedData = data else {
-                            DispatchQueue.main.async {
-                                self.showAlert(message: "Сервер вернул 200, но данных нет")
-                            }
-                            return
-                        }
-                        self.makeNavigationView(data: downloadedData)
-                    }
-                    else {
-                        DispatchQueue.main.async {
-                            self.showAlert(message: "Сервер не вернул 200 при попытке подгрузить файлы с треками  \(response.statusCode)")
-                        }
-                    }
-                }
-            }
-            task.resume()
-        }
     }
     
     func configureTableView() {
@@ -101,9 +67,6 @@ class LoggedTracksController: UIViewController {
     }
 }
 
-struct Files: Codable {
-    var files: [String]
-}
 
 extension LoggedTracksController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -117,9 +80,8 @@ extension LoggedTracksController: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        // Переход на новый экран при выборе строки
         let mapVC = MapViewController()
-        mapVC.fileName = files[indexPath.row]
+        mapVC.filename = files[indexPath.row]
         mapVC.token = token
         navigationController?.pushViewController(mapVC, animated: true)
     }
