@@ -10,14 +10,24 @@ import MapKit
 import CoreLocation
 class MapViewController: UIViewController {
 
-    var filename: String?
-    var token: String?
+    var filename: String
     let mapView: MKMapView = {
         let map = MKMapView()
         map.translatesAutoresizingMaskIntoConstraints = false
         map.overrideUserInterfaceStyle = .dark
         return map
     }()
+    
+    init(filename: String) {
+        self.filename = filename
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        return nil
+    }
+    
+
     
     let gpxParser: GPXParser = GPXParser()
     
@@ -34,10 +44,12 @@ class MapViewController: UIViewController {
 
     func setMapConstraints() {
         view.addSubview(mapView)
-        mapView.widthAnchor.constraint(equalTo: view.widthAnchor).isActive = true
-        mapView.heightAnchor.constraint(equalTo: view.heightAnchor).isActive = true
-        mapView.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
-        mapView.centerYAnchor.constraint(equalTo: view.centerYAnchor).isActive = true
+        NSLayoutConstraint.activate([
+            mapView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            mapView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            mapView.leftAnchor.constraint(equalTo: view.leftAnchor),
+            mapView.rightAnchor.constraint(equalTo: view.rightAnchor)
+        ])
     }
     
     func draw(data: Data) {
@@ -65,10 +77,8 @@ class MapViewController: UIViewController {
     
     func makeDotsFromQuery() async {
         do {
-            guard let token = token else { throw GPXError.fileNameOrTokenEqualsNil }
-            guard let filename = filename else { throw GPXError.fileNameOrTokenEqualsNil}
             print(filename)
-            let data = try await apiService.getGPX(token: token, filename: filename)
+            let data = try await apiService.getGPX(filename: filename)
             print(data)
             draw(data: data)
         } catch {

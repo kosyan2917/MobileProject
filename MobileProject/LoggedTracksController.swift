@@ -10,24 +10,39 @@ import UIKit
 class LoggedTracksController: UIViewController {
     
     
-    var token: String?
     var tableView = UITableView()
     var files: [String] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
+        NotificationCenter.default.addObserver(self, selector: #selector(reloadData), name: .reloadTracks, object: nil)
         configureTableView()
+    }
+    
+    @objc private func reloadData() {
         Task {
             do {
-                guard let token = token else { throw GPXError.fileNameOrTokenEqualsNil }
-                let data = try await apiService.getFiles(token: token)
+                print(345)
+                let data = try await apiService.getFiles()
                 makeNavigationView(data: data)
             } catch {
                 print("Ошибка в getFiles \(error.localizedDescription)")
             }
         }
-        
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        Task {
+            do {
+                print(123)
+                let data = try await apiService.getFiles()
+                makeNavigationView(data: data)
+            } catch {
+                print("Ошибка в getFiles \(error.localizedDescription)")
+            }
+        }
     }
     
     func configureTableView() {
@@ -48,7 +63,7 @@ class LoggedTracksController: UIViewController {
     
     func makeNavigationView(data: Data) {
         do {
-            var filesResponse = try JSONDecoder().decode(Files.self, from: data)
+            let filesResponse = try JSONDecoder().decode(Files.self, from: data)
             files = filesResponse.files
             DispatchQueue.main.async{
                 self.tableView.reloadData()
@@ -80,9 +95,7 @@ extension LoggedTracksController: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let mapVC = MapViewController()
-        mapVC.filename = files[indexPath.row]
-        mapVC.token = token
+        let mapVC = MapViewController(filename: files[indexPath.row])
         navigationController?.pushViewController(mapVC, animated: true)
     }
 }

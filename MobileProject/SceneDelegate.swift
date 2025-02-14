@@ -17,27 +17,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // If using a storyboard, the `window` property will automatically be initialized and attached to the scene.
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
         guard let scene = (scene as? UIWindowScene) else { return }
-        KeychainHelper.shared.delete(forKey: "userToken")
+//        KeychainHelper.shared.delete(forKey: "userToken")
         window = UIWindow(windowScene: scene)
-        let tabbarController = UITabBarController()
-        let tracksController = TracksController()
-        let loginController = LoginController()
-        tabbarController.viewControllers = [
-            tracksController,
-            loginController
-        ]
-        tracksController.tabBarItem = UITabBarItem(
-            title: "Треки",
-            image: .init(systemName: "arrow.circlepath"),
-            tag: 0
-        )
-        loginController.tabBarItem = UITabBarItem(
-            title: "Профиль",
-            image: .init(systemName: "person.fill.viewfinder"),
-            tag: 1
-        )
-        tabbarController.tabBar.isTranslucent = false
-        window?.rootViewController = tabbarController
+        window?.rootViewController = MainController()
         window?.makeKeyAndVisible()
     }
 
