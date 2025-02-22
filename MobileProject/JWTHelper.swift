@@ -29,7 +29,7 @@ struct Header: Encodable {
 
 struct Payload: Encodable {
     let name: String
-    let iat: Double
+    let exp: Double
 }
 
 class JWTHelper {
@@ -41,7 +41,7 @@ class JWTHelper {
     }
     
     func encode(name: String, alive: Double) -> String {
-        let payload = Payload(name: name, iat: NSDate().timeIntervalSince1970+alive)
+        let payload = Payload(name: name, exp: NSDate().timeIntervalSince1970+alive)
         let headerJSONData = try! JSONEncoder().encode(Header())
         let headerBase64String = headerJSONData.urlSafeBase64EncodedString()
 
@@ -58,8 +58,6 @@ class JWTHelper {
     }
     
     func decode(jwtToken jwt: String) throws -> [String: Any] {
-
-
 
         func base64Decode(_ base64: String) throws -> Data {
             let base64 = base64

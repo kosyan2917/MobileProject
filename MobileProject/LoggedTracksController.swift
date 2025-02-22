@@ -17,7 +17,7 @@ class LoggedTracksController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .white
         NotificationCenter.default.addObserver(self, selector: #selector(reloadData), name: .reloadTracks, object: nil)
-        configureTableView()
+        setupTableView()
     }
     
     @objc private func reloadData() {
@@ -45,7 +45,7 @@ class LoggedTracksController: UIViewController {
         }
     }
     
-    func configureTableView() {
+    private func setupTableView() {
         view.addSubview(tableView)
         tableView.translatesAutoresizingMaskIntoConstraints = false
         
@@ -61,7 +61,7 @@ class LoggedTracksController: UIViewController {
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "FileCell")
     }
     
-    func makeNavigationView(data: Data) {
+    private func makeNavigationView(data: Data) {
         do {
             let filesResponse = try JSONDecoder().decode(Files.self, from: data)
             files = filesResponse.files
@@ -75,7 +75,7 @@ class LoggedTracksController: UIViewController {
     }
 
     
-    func showAlert(message: String) {
+    private func showAlert(message: String) {
         let alert = UIAlertController(title: "Уведомление", message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Ок", style: .default))
         present(alert, animated: true)

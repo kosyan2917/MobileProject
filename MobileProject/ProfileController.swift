@@ -20,12 +20,18 @@ class ProfileController: UIViewController {
     
     public func setLoginScreen() {
         view.subviews.forEach { $0.removeFromSuperview() }
+        addChild(loginScreen)
+        loginScreen.view.frame = view.bounds
         view.addSubview(loginScreen.view)
+        loginScreen.didMove(toParent: self)
     }
     
     public func setProfileScreen() {
         view.subviews.forEach { $0.removeFromSuperview() }
+        addChild(profileScreen)
+        profileScreen.view.frame = view.bounds
         view.addSubview(profileScreen.view)
+        profileScreen.didMove(toParent: self)
     }
 }
 
@@ -91,10 +97,11 @@ class LoginScreen: UIViewController {
     var loginButton = UIButton()
     override func viewDidLoad() {
         super.viewDidLoad()
+        self.isModalInPresentation = true
         title = "Профиль"
         view.backgroundColor = .white
-        configureLabelField()
         configureLoginField()
+        configureLabelField()
         configurePasswordField()
         configureLoginButton()
     }
@@ -106,9 +113,7 @@ class LoginScreen: UIViewController {
         enterLabel.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             enterLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            enterLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 200),
-            enterLabel.widthAnchor.constraint(equalToConstant: 200),
-            enterLabel.heightAnchor.constraint(equalToConstant: 80)
+            enterLabel.bottomAnchor.constraint(equalTo: login.topAnchor, constant: -50)
         ])
     }
     
@@ -117,7 +122,8 @@ class LoginScreen: UIViewController {
         login.delegate = self
         login.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            login.topAnchor.constraint(equalTo: enterLabel.bottomAnchor, constant: 50),
+            login.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            login.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -50),
             login.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             login.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
         ])
@@ -183,9 +189,7 @@ class LoginScreen: UIViewController {
             KeychainHelper.shared.save(access_token, forKey: "accessToken")
             KeychainHelper.shared.save(refresh_token, forKey: "refreshToken")
             NotificationCenter.default.post(name: .loginSuccess, object: nil)
-            DispatchQueue.main.async {
-                self.showAlert(message: "Успешный вход, \(access_token)")
-            }
+            self.dismiss(animated: true)
         } catch {
             DispatchQueue.main.async {
                 self.showAlert(message: "Данные с сервера не преобразовались в JSON")

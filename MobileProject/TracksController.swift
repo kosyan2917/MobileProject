@@ -28,12 +28,20 @@ class TracksController: UIViewController {
     
     public func setTracksView() {
         view.subviews.forEach { $0.removeFromSuperview() }
-        view.addSubview(tracksScreen.view)
+        let loggedInVC = LoggedTracksController()
+        let navController = UINavigationController(rootViewController: loggedInVC)
+        addChild(navController)
+        navController.view.frame = view.bounds
+        view.addSubview(navController.view)
+        navController.didMove(toParent: self)
     }
     
     public func setUnauthorizedView() {
         view.subviews.forEach { $0.removeFromSuperview() }
+        addChild(unauthorizedScreen)
+        unauthorizedScreen.view.frame = view.bounds
         view.addSubview(unauthorizedScreen.view)
+        unauthorizedScreen.didMove(toParent: self)
     }
     
 }
@@ -63,12 +71,8 @@ class UnauthorizedScreen: UIViewController {
 class TracksScreen: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
-        let loggedInVC = LoggedTracksController()
-        let navController = UINavigationController(rootViewController: loggedInVC)
-        self.addChild(navController)
-        navController.view.frame = view.bounds
-        view.addSubview(navController.view)
-        navController.didMove(toParent: self)
+        
+        
     }
 }
 

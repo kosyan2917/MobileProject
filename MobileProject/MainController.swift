@@ -11,7 +11,15 @@ class MainController: UITabBarController {
     
     let tracksController = TracksController()
     let profileController = ProfileController()
+    let recordController = RecordController()
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        if KeychainHelper.shared.get(forKey: "refreshToken") == nil {
+            presentLoginPage()
+        }
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         NotificationCenter.default.addObserver(self, selector: #selector(handleLogout), name: .logout, object: nil)
@@ -26,13 +34,25 @@ class MainController: UITabBarController {
         profileController.tabBarItem = UITabBarItem(
             title: "Профиль",
             image: .init(systemName: "person.fill.viewfinder"),
-            tag: 1
+            tag: 2
         )
+//        recordController.tabBarItem = UITabBarItem(
+//            title: "Запись тренировки",
+//            image: .init(systemName: "arrow.triangle.merge "),
+//            tag: 1
+//        )
         viewControllers = [
             tracksController,
+//            recordController,
             profileController
         ]
         self.tabBar.isTranslucent = false
+
+    }
+    
+    func presentLoginPage() {
+        let loginPage = LoginScreen()
+        self.present(loginPage, animated: true)
     }
     
     @objc private func handleLoginSuccess() {
@@ -42,16 +62,14 @@ class MainController: UITabBarController {
     
     @objc private func handleLogout() {
         tracksController.setUnauthorizedView()
-        profileController.setLoginScreen()
-        selectedIndex = 1
+        presentLoginPage()
     }
     
     @objc private func handleUnauthorized() {
         KeychainHelper.shared.delete(forKey: "accessToken")
         KeychainHelper.shared.delete(forKey: "refreshToken")
         tracksController.setUnauthorizedView()
-        profileController.setLoginScreen()
-        selectedIndex = 1
+        presentLoginPage()
     }
     
     deinit {

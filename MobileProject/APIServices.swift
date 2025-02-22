@@ -28,7 +28,7 @@ protocol APIService {
 class MockAPIService: APIService {
 
     private let access_token_alive_time: Double = 10
-    private let refresh_token_alive_time: Double = 20
+    private let refresh_token_alive_time: Double = 1200
     
     func getFiles() async throws -> Data {
         if !checkAuth() {
@@ -85,13 +85,15 @@ class MockAPIService: APIService {
             }
             return false
         }
+        print(access_token)
+        print(refresh_token)
         do {
             let body = try JWTHelper.shared.decode(jwtToken: access_token)
-            if let iat = body["iat"] as? Double {
+            if let iat = body["exp"] as? Double {
                 if iat < Date().timeIntervalSince1970 {
                     let refresh_body = try JWTHelper.shared.decode(jwtToken: refresh_token)
                     print(refresh_body)
-                    if let refresh_iat = refresh_body["iat"] as? Double, let username = refresh_body["name"] as? String {
+                    if let refresh_iat = refresh_body["exp"] as? Double, let username = refresh_body["name"] as? String {
                         if refresh_iat < Date().timeIntervalSince1970 {
                             KeychainHelper.shared.delete(forKey: "accessToken")
                             KeychainHelper.shared.delete(forKey: "refreshToken")
