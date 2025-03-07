@@ -36,19 +36,16 @@ class MainController: UITabBarController {
             image: .init(systemName: "person.fill.viewfinder"),
             tag: 2
         )
-//        recordController.tabBarItem = UITabBarItem(
-//            title: "Запись тренировки",
-//            image: .init(systemName: "arrow.triangle.merge "),
-//            tag: 1
-//        )
+        recordController.tabBarItem = UITabBarItem(
+            title: "Запись тренировки",
+            image: .init(systemName: "arrow.triangle.merge"),
+            tag: 1
+        )
         viewControllers = [
             tracksController,
-//            recordController,
+            recordController,
             profileController
-        ]
-        self.tabBar.isTranslucent = false
-
-    }
+        ]    }
     
     func presentLoginPage() {
         let loginPage = LoginScreen()
