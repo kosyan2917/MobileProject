@@ -37,8 +37,8 @@ class RecordController: UIViewController {
 }
 
 extension RecordController: RecordPlayingControllerDelegate {
-    func stopDidTap(distance: Double, time: String, pace: Double) {
-        let resultVC = ResultViewController(distance: distance, time: time, pace: pace)
+    func stopDidTap(distance: Double, time: String, pace: Double, locations: [CLLocation]) {
+        let resultVC = ResultViewController(distance: distance, time: time, pace: pace, locations: locations)
         resultVC.delegate = self
         
         let transition = CATransition()

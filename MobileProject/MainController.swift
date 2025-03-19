@@ -45,7 +45,9 @@ class MainController: UITabBarController {
             tracksController,
             recordController,
             profileController
-        ]    }
+        ]
+        tabBar.isTranslucent = false
+    }
     
     func presentLoginPage() {
         let loginPage = LoginScreen()

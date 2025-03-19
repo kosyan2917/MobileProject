@@ -10,7 +10,6 @@ import UIKit
 class TracksController: UIViewController {
     
     var unauthorizedScreen = UnauthorizedScreen()
-    var tracksScreen = TracksScreen()
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Треки"
@@ -68,12 +67,5 @@ class UnauthorizedScreen: UIViewController {
     }
 }
 
-class TracksScreen: UIViewController {
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        
-        
-    }
-}
 
 
