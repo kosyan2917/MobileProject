@@ -167,9 +167,9 @@ extension RecordPlayingController: CLLocationManagerDelegate {
 
         if let previousLocation = previousLocation {
             let distance = newLocation.distance(from: previousLocation)
-            model.distance += distance
+            model.distance += distance / 1000
         }
-        model.pace = newLocation.speed >= 0 ? newLocation.speed : model.pace
+        model.pace = newLocation.speed >= 0 ? newLocation.speed * 3.6 : model.pace
         previousLocation = newLocation
         model.track.append(newLocation)
     }
