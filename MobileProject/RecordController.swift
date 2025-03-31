@@ -7,6 +7,7 @@
 
 import UIKit
 import CoreLocation
+import SwiftUI
 
 class RecordController: UIViewController {
     
@@ -37,10 +38,10 @@ class RecordController: UIViewController {
 }
 
 extension RecordController: RecordPlayingControllerDelegate {
-    func stopDidTap(distance: Double, time: String, pace: Double) {
-        let resultVC = ResultViewController(distance: distance, time: time, pace: pace)
-        resultVC.delegate = self
-        
+    func stopDidTap(distance: Double, time: String, pace: Double, locations: [CLLocation]) {
+//        let resultVC = ResultViewController(distance: distance, time: time, pace: pace, locations: locations)
+//        resultVC.delegate = self
+        let resultVC = UIHostingController(rootView: ResultView(time: time, distance: distance, pace: pace, locations: locations, onTapped: newTrackDidTap))
         let transition = CATransition()
         transition.type = .push
         transition.subtype = .fromRight

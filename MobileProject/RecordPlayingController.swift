@@ -14,6 +14,7 @@ class RecordModel {
     var pace: Double = 0
     var elapsedSeconds: Double = 0
     var isPlaying = false
+    var track: [CLLocation] = []
     
     init() {
         startTime = Date()
@@ -24,6 +25,7 @@ class RecordModel {
         elapsedSeconds = 0
         distance = 0
         pace = 0
+        track = []
     }
     
     func getTotalPace() -> Double {
@@ -49,7 +51,7 @@ class RecordModel {
 }
 
 protocol RecordPlayingControllerDelegate: AnyObject {
-    func stopDidTap(distance: Double, time: String, pace: Double)
+    func stopDidTap(distance: Double, time: String, pace: Double, locations: [CLLocation])
 }
 
 class RecordPlayingController: UIViewController {
@@ -140,7 +142,7 @@ class RecordPlayingController: UIViewController {
     
     @objc private func stopHandle(_ sender:UIButton) {
         isRunning = false
-        delegate?.stopDidTap(distance: model.distance, time: model.getTime(), pace: model.getTotalPace())
+        delegate?.stopDidTap(distance: model.distance, time: model.getTime(), pace: model.getTotalPace(), locations: model.track    )
     }
 }
 
@@ -165,10 +167,11 @@ extension RecordPlayingController: CLLocationManagerDelegate {
 
         if let previousLocation = previousLocation {
             let distance = newLocation.distance(from: previousLocation)
-            model.distance += distance
+            model.distance += distance / 1000
         }
-        model.pace = newLocation.speed >= 0 ? newLocation.speed : model.pace
+        model.pace = newLocation.speed >= 0 ? newLocation.speed * 3.6 : model.pace
         previousLocation = newLocation
+        model.track.append(newLocation)
     }
        
    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
