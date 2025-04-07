@@ -38,10 +38,10 @@ class RecordController: UIViewController {
 }
 
 extension RecordController: RecordPlayingControllerDelegate {
-    func stopDidTap(distance: Double, time: String, pace: Double, locations: [CLLocation]) {
+    func stopDidTap(distance: Double, time: String, pace: Double, locations: [CLLocation], elapsed: Int) {
 //        let resultVC = ResultViewController(distance: distance, time: time, pace: pace, locations: locations)
 //        resultVC.delegate = self
-        let resultVC = UIHostingController(rootView: ResultView(time: time, distance: distance, pace: pace, locations: locations, onTapped: newTrackDidTap))
+        let resultVC = UIHostingController(rootView: ResultView(time: time, elapsed: elapsed, distance: distance, pace: pace, locations: locations, onTapped: newTrackDidTap))
         let transition = CATransition()
         transition.type = .push
         transition.subtype = .fromRight
@@ -61,14 +61,25 @@ extension RecordController: RecordPlayingControllerDelegate {
     }
 }
     
-extension RecordController: ResultViewControllerDelegate {
-    func newTrackDidTap() {
+extension RecordController {
+    func newTrackDidTap(locations: [CLLocation], distance: Double, time: Int) {
+        let context = CoreDataManager.shared.context
+        let track = Tracks(context: context)
+        let name = "Жесткий тренинг \(Int(Date().timeIntervalSince1970))"
+        track.name = name
+        track.createdAt = Date.now
+        track.isPublished = false
+        track.distance = distance
+        track.time = Int64(time)
+        track.user = JWTHelper.shared.getUser()
+        CoreDataManager.shared.saveContext()
+        let gpx = GPXGenerator().generateGPX(from: locations)
+        GPXFileManager.shared.saveTrackFile(fileName: name, data: gpx)
         let transition = CATransition()
         transition.type = .push
         transition.subtype = .fromLeft
         transition.duration = 0.5
         view.layer.add(transition, forKey: kCATransition)
-
         newTrack()
     }
 }

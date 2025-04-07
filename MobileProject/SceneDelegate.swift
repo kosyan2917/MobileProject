@@ -19,6 +19,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let scene = (scene as? UIWindowScene) else { return }
 //        KeychainHelper.shared.delete(forKey: "accessToken")
 //        KeychainHelper.shared.delete(forKey: "refreshToken")
+//        CoreDataManager.shared.clearDatabase()
         window = UIWindow(windowScene: scene)
         window?.rootViewController = MainController()
         window?.makeKeyAndVisible()

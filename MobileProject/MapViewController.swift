@@ -78,7 +78,7 @@ class MapViewController: UIViewController {
     func makeDotsFromQuery() async {
         do {
             print(filename)
-            let data = try await apiService.getGPX(filename: filename)
+            let data = try await apiService.getGPX(file: filename)
             print(data)
             draw(data: data)
         } catch {

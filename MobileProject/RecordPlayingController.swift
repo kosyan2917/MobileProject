@@ -29,7 +29,7 @@ class RecordModel {
     }
     
     func getTotalPace() -> Double {
-        return distance/elapsedSeconds
+        return distance/elapsedSeconds*3600
     }
     
     func getTime() -> String {
@@ -51,7 +51,7 @@ class RecordModel {
 }
 
 protocol RecordPlayingControllerDelegate: AnyObject {
-    func stopDidTap(distance: Double, time: String, pace: Double, locations: [CLLocation])
+    func stopDidTap(distance: Double, time: String, pace: Double, locations: [CLLocation], elapsed: Int)
 }
 
 class RecordPlayingController: UIViewController {
@@ -142,7 +142,7 @@ class RecordPlayingController: UIViewController {
     
     @objc private func stopHandle(_ sender:UIButton) {
         isRunning = false
-        delegate?.stopDidTap(distance: model.distance, time: model.getTime(), pace: model.getTotalPace(), locations: model.track    )
+        delegate?.stopDidTap(distance: model.distance, time: model.getTime(), pace: model.getTotalPace(), locations: model.track, elapsed: Int(model.elapsedSeconds))
     }
 }
 

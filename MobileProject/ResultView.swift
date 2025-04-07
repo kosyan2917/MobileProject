@@ -3,10 +3,11 @@ import MapKit
 
 struct ResultView: View {
     var time: String
+    var elapsed: Int
     var distance: Double
     var pace: Double
     var locations: [CLLocation]
-    var onTapped: () -> Void
+    var onTapped: ([CLLocation], Double, Int) -> Void
     var locations2d: [CLLocationCoordinate2D] {
         var locs: [CLLocationCoordinate2D] = []
         for location in locations {
@@ -36,9 +37,10 @@ struct ResultView: View {
             .padding(.horizontal)
             
             Spacer()
-            
-            Button(action: onTapped) {
-                Text("Новая тренировка")
+            Button(action: {
+                onTapped(locations, distance, elapsed)
+            }) {
+                Text("Сохранить")
                     .font(.title2)
                     .frame(maxWidth: .infinity)
                     .padding()
