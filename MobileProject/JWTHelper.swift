@@ -30,6 +30,7 @@ struct Header: Encodable {
 struct Payload: Encodable {
     let name: String
     let exp: Double
+    let type: String
 }
 
 class JWTHelper {
@@ -40,8 +41,8 @@ class JWTHelper {
         privateKey = SymmetricKey(data: Data(secret.utf8))
     }
     
-    func encode(name: String, alive: Double) -> String {
-        let payload = Payload(name: name, exp: NSDate().timeIntervalSince1970+alive)
+    func encode(name: String, alive: Double, type: String) -> String {
+        let payload = Payload(name: name, exp: NSDate().timeIntervalSince1970+alive, type: type)
         let headerJSONData = try! JSONEncoder().encode(Header())
         let headerBase64String = headerJSONData.urlSafeBase64EncodedString()
 
@@ -83,4 +84,20 @@ class JWTHelper {
         return try decodeJWTPart(segments[1])
     }
 
+    func getUser() -> String {
+        guard let token = KeychainHelper.shared.get(forKey: "accessToken") else {
+            NotificationCenter.default.post(name: .unauthorized, object: nil)
+            return ""
+        }
+        do {
+            let body = try decode(jwtToken: token)
+            if let username = body["name"] as? String {
+                return username
+            }
+            return ""
+        } catch {
+            print("Я устал")
+            return ""
+        }
+    }
 }

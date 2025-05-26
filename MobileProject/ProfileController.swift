@@ -5,10 +5,12 @@
 //  Created by Никита Косянков on 13.02.2025.
 //
 import UIKit
+import SwiftUI
+
 class ProfileController: UIViewController {
     
     var loginScreen = LoginScreen()
-    var profileScreen = ProfileScreen()
+    var profileScreen = CustomTopTabsView()
     override func viewDidLoad() {
         super.viewDidLoad()
         if KeychainHelper.shared.get(forKey: "accessToken") != nil {
@@ -28,66 +30,138 @@ class ProfileController: UIViewController {
     
     public func setProfileScreen() {
         view.subviews.forEach { $0.removeFromSuperview() }
-        addChild(profileScreen)
-        profileScreen.view.frame = view.bounds
-        view.addSubview(profileScreen.view)
-        profileScreen.didMove(toParent: self)
+        let profileView = UIHostingController(rootView: profileScreen)
+        addChild(profileView)
+        profileView.view.frame = view.bounds
+        view.addSubview(profileView.view)
+        profileView.didMove(toParent: self)
     }
 }
 
-
-class ProfileScreen: UIViewController {
-    var greeting = UITextField()
-    var logoutButton = UIButton()
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        setupGreeting()
-        setupLogoutButton()
+struct ProfileScreen: View {
+    @State var isLoaded: Bool = false
+    @State var name: String = ""
+    @State var image: String = ""
+    @State var APIError: String?
+    var body: some View {
+        VStack(alignment: .center, spacing: 20) {
+            if isLoaded {
+                if APIError == nil {
+                    VStack(spacing: 10) {
+                        AsyncImage(url: URL(string: apiService.baseUrl + "../static/" + image)) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView()
+                                        .frame(width: 100, height: 100)
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFit()
+                                case .failure:
+                                    Image("Anonymous")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .foregroundColor(.gray)
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
+                            .frame(width: 120, height: 120)
+                            .clipShape(Circle())
+                            .shadow(radius: 5)
+                        Text(name)
+                            .font(.title)
+                            .fontWeight(.bold)
+                    }
+                    .padding()
+                    
+                    VStack(alignment: .center, spacing: 8) {
+                        Text("Последняя активность")
+                            .font(.headline)
+                        Text("Последняя тренировка: 5 апреля 2025")
+                            .font(.subheadline)
+                        Text("Тип: Силовая • Длительность: 45 мин")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
+                    .frame(minWidth: 0, maxWidth: .infinity)
+                    
+                    
+                    VStack(alignment: .center, spacing: 8) {
+                        Text("За последние 30 дней")
+                            .font(.headline)
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("Дистанция")
+                                    .font(.subheadline)
+                                Text("42 км")
+                                    .font(.title2)
+                                    .fontWeight(.medium)
+                            }
+                            Spacer()
+                            VStack(alignment: .leading) {
+                                Text("Время тренировок")
+                                    .font(.subheadline)
+                                Text("5 ч")
+                                    .font(.title2)
+                                    .fontWeight(.medium)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
+                    .frame(minWidth: 0, maxWidth: .infinity)
+                    
+                    
+                    Button(action: {
+                        NotificationCenter.default.post(name: .logout, object: nil)
+                    }) {
+                        Text("Выйти")
+                            .font(.title2)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    Spacer()
+                } else {
+                    Text(APIError!)
+                }
+            } else {
+                Text("Загрузка...")
+            }
+        }
+        .padding()
+        .task {
+            do {
+                guard let user = KeychainHelper.shared.get(forKey: "username") else {
+                    throw APIErrors.Unauthorized
+                }
+                let profile = try await apiService.getProfile(user: user)
+                name = profile.name
+                print(profile)
+                if profile.image == "" {
+                    image = "anonymous.jpeg"
+                } else {
+                    image = profile.image
+                }
+            } catch APIErrors.Unauthorized {
+                APIError = "Вы не авторизованы"
+                NotificationCenter.default.post(name: .unauthorized, object: nil)
+            } catch APIErrors.BadServerResponse {
+                APIError = "Не удалось получить данные"
+            } catch let error {
+                APIError = "Произошла непредвиденная ошибка: \(error.localizedDescription)"
+            }
+            isLoaded = true
+        }
     }
-    
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        // TODO: Запрос на профиль
-        greeting.text = "Здрасьте"
-    }
-    
-    private func setupGreeting() {
-        view.addSubview(greeting)
-        greeting.textAlignment = .center
-        greeting.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            greeting.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            greeting.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            greeting.heightAnchor.constraint(equalToConstant: 80),
-            greeting.widthAnchor.constraint(equalToConstant: 200)
-        ])
-    }
-    
-    private func setupLogoutButton() {
-        view.addSubview(logoutButton)
-        logoutButton.translatesAutoresizingMaskIntoConstraints = false
-        logoutButton.setTitle("Выйти", for: .normal)
-        logoutButton.setTitleColor(.white, for: .normal)
-        logoutButton.backgroundColor = .systemRed
-        logoutButton.layer.cornerRadius = 5
-        logoutButton.layer.borderWidth = 1
-        logoutButton.layer.borderColor = UIColor.black.cgColor
-        logoutButton.addTarget(self, action: #selector(handleLogoutTap), for: .touchUpInside)
-        NSLayoutConstraint.activate([
-            logoutButton.topAnchor.constraint(equalTo: greeting.bottomAnchor, constant: 10),
-            logoutButton.heightAnchor.constraint(equalToConstant: 50),
-            logoutButton.widthAnchor.constraint(equalToConstant: 100),
-            logoutButton.centerXAnchor.constraint(equalTo: view.centerXAnchor)
-        ])
-    }
-    
-    @objc private func handleLogoutTap() {
-        KeychainHelper.shared.delete(forKey: "accsesToken")
-        KeychainHelper.shared.delete(forKey: "refreshToken")
-        NotificationCenter.default.post(name: .logout, object: nil)
-    }
-    
 }
 
 class LoginScreen: UIViewController {
@@ -172,30 +246,13 @@ class LoginScreen: UIViewController {
         }
         Task {
             do {
-                let data = try await apiService.login(username: username, password: passwordText)
-                onLoginSuccess(data: data)
+                try await apiService.login(username: username, password: passwordText)
+                self.dismiss(animated: true)
             } catch {
                 showAlert(message: "Возникла ошибка при попытке входа \(error.localizedDescription)")
             }
         }
         
-    }
-    
-    private func onLoginSuccess(data: Data) {
-        do {
-            let tokenJSON = try JSONDecoder().decode(loginResponse.self, from: data)
-            let access_token = tokenJSON.access_token
-            let refresh_token = tokenJSON.refresh_token
-            KeychainHelper.shared.save(access_token, forKey: "accessToken")
-            KeychainHelper.shared.save(refresh_token, forKey: "refreshToken")
-            NotificationCenter.default.post(name: .loginSuccess, object: nil)
-            self.dismiss(animated: true)
-        } catch {
-            DispatchQueue.main.async {
-                self.showAlert(message: "Данные с сервера не преобразовались в JSON")
-            }
-            return
-        }
     }
     
     func showAlert(message: String) {
@@ -207,5 +264,42 @@ class LoginScreen: UIViewController {
 
 extension LoginScreen: UITextFieldDelegate {
     
+}
+
+struct CustomTopTabsView: View {
+    @State private var selected = 0
+    private let titles = ["Профиль", "Мои участки"]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                ForEach(0..<titles.count, id: \.self) { idx in
+                    Button(action: {
+                        withAnimation { selected = idx }
+                    }) {
+                        Text(titles[idx])
+                            .fontWeight(selected == idx ? .bold : .regular)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+            .background(Color(UIColor.secondarySystemBackground))
+
+            GeometryReader { geo in
+                Rectangle()
+                    .frame(width: geo.size.width / CGFloat(titles.count), height: 2)
+                    .offset(x: geo.size.width * CGFloat(selected) / CGFloat(titles.count), y: 0)
+                    .animation(.easeInOut, value: selected)
+            }
+            .frame(height: 2)
+
+            TabView(selection: $selected) {
+                ProfileScreen().tag(0)
+                PiecesList(added: true).tag(1)
+            }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+        }
+    }
 }
 

@@ -53,7 +53,8 @@ struct KeychainHelper {
         if status == errSecSuccess, let data = result as? Data {
             return String(data: data, encoding: .utf8)
         } else {
-            print("Ошибка извлечения из Keychain: \(status)")
+            
+            print("Ошибка извлечения из Keychain: \(status) \(key)")
             return nil
         }
     }
