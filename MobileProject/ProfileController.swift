@@ -5,10 +5,12 @@
 //  Created by Никита Косянков on 13.02.2025.
 //
 import UIKit
+import SwiftUI
+
 class ProfileController: UIViewController {
     
     var loginScreen = LoginScreen()
-    var profileScreen = ProfileScreen()
+    var profileScreen = CustomTopTabsView()
     override func viewDidLoad() {
         super.viewDidLoad()
         if KeychainHelper.shared.get(forKey: "accessToken") != nil {
@@ -36,91 +38,131 @@ class ProfileController: UIViewController {
     }
 }
 
-import SwiftUI
-
 struct ProfileScreen: View {
+    @State var isLoaded: Bool = false
+    @State var name: String = ""
+    @State var image: String = ""
+    @State var APIError: String?
     var body: some View {
         VStack(alignment: .center, spacing: 20) {
-            VStack(spacing: 10) {
-                Image("profileImage")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 120, height: 120)
-                    .clipShape(Circle())
-                    .shadow(radius: 5)
-                Text("Ivan Petrov")
-                    .font(.title)
-                    .fontWeight(.bold)
-            }
-            .padding()
-            
-            VStack(alignment: .center, spacing: 8) {
-                Text("Последняя активность")
-                    .font(.headline)
-                Text("Последняя тренировка: 5 апреля 2025")
-                    .font(.subheadline)
-                Text("Тип: Силовая • Длительность: 45 мин")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(10)
-            .frame(minWidth: 0, maxWidth: .infinity)
-            
-            
-            VStack(alignment: .center, spacing: 8) {
-                Text("За последние 30 дней")
-                    .font(.headline)
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("Дистанция")
-                            .font(.subheadline)
-                        Text("42 км")
-                            .font(.title2)
-                            .fontWeight(.medium)
+            if isLoaded {
+                if APIError == nil {
+                    VStack(spacing: 10) {
+                        AsyncImage(url: URL(string: apiService.baseUrl + "../static/" + image)) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView()
+                                        .frame(width: 100, height: 100)
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFit()
+                                case .failure:
+                                    Image("Anonymous")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .foregroundColor(.gray)
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
+                            .frame(width: 120, height: 120)
+                            .clipShape(Circle())
+                            .shadow(radius: 5)
+                        Text(name)
+                            .font(.title)
+                            .fontWeight(.bold)
                     }
-                    Spacer()
-                    VStack(alignment: .leading) {
-                        Text("Время тренировок")
-                            .font(.subheadline)
-                        Text("5 ч")
-                            .font(.title2)
-                            .fontWeight(.medium)
-                    }
-                }
-            }
-            .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(10)
-            .frame(minWidth: 0, maxWidth: .infinity)
-
-            
-            Button(action: {
-                NotificationCenter.default.post(name: .logout, object: nil)
-            }) {
-                Text("Выйти")
-                    .font(.title2)
-                    .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.red)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
+                    
+                    VStack(alignment: .center, spacing: 8) {
+                        Text("Последняя активность")
+                            .font(.headline)
+                        Text("Последняя тренировка: 5 апреля 2025")
+                            .font(.subheadline)
+                        Text("Тип: Силовая • Длительность: 45 мин")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
+                    .frame(minWidth: 0, maxWidth: .infinity)
+                    
+                    
+                    VStack(alignment: .center, spacing: 8) {
+                        Text("За последние 30 дней")
+                            .font(.headline)
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("Дистанция")
+                                    .font(.subheadline)
+                                Text("42 км")
+                                    .font(.title2)
+                                    .fontWeight(.medium)
+                            }
+                            Spacer()
+                            VStack(alignment: .leading) {
+                                Text("Время тренировок")
+                                    .font(.subheadline)
+                                Text("5 ч")
+                                    .font(.title2)
+                                    .fontWeight(.medium)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
+                    .frame(minWidth: 0, maxWidth: .infinity)
+                    
+                    
+                    Button(action: {
+                        NotificationCenter.default.post(name: .logout, object: nil)
+                    }) {
+                        Text("Выйти")
+                            .font(.title2)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    Spacer()
+                } else {
+                    Text(APIError!)
+                }
+            } else {
+                Text("Загрузка...")
             }
-            .padding(.horizontal)
-            Spacer()
-
         }
         .padding()
-        
+        .task {
+            do {
+                guard let user = KeychainHelper.shared.get(forKey: "username") else {
+                    throw APIErrors.Unauthorized
+                }
+                let profile = try await apiService.getProfile(user: user)
+                name = profile.name
+                print(profile)
+                if profile.image == "" {
+                    image = "anonymous.jpeg"
+                } else {
+                    image = profile.image
+                }
+            } catch APIErrors.Unauthorized {
+                APIError = "Вы не авторизованы"
+                NotificationCenter.default.post(name: .unauthorized, object: nil)
+            } catch APIErrors.BadServerResponse {
+                APIError = "Не удалось получить данные"
+            } catch let error {
+                APIError = "Произошла непредвиденная ошибка: \(error.localizedDescription)"
+            }
+            isLoaded = true
+        }
     }
 }
-
-
-//    @objc private func handleLogoutTap() {
-//        KeychainHelper.shared.delete(forKey: "accsesToken")
-//        KeychainHelper.shared.delete(forKey: "refreshToken")
-//        NotificationCenter.default.post(name: .logout, object: nil)
 
 class LoginScreen: UIViewController {
     var login = UITextField()
@@ -205,7 +247,6 @@ class LoginScreen: UIViewController {
         Task {
             do {
                 try await apiService.login(username: username, password: passwordText)
-                NotificationCenter.default.post(name: .loginSuccess, object: nil)
                 self.dismiss(animated: true)
             } catch {
                 showAlert(message: "Возникла ошибка при попытке входа \(error.localizedDescription)")
@@ -223,5 +264,42 @@ class LoginScreen: UIViewController {
 
 extension LoginScreen: UITextFieldDelegate {
     
+}
+
+struct CustomTopTabsView: View {
+    @State private var selected = 0
+    private let titles = ["Профиль", "Мои участки"]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                ForEach(0..<titles.count, id: \.self) { idx in
+                    Button(action: {
+                        withAnimation { selected = idx }
+                    }) {
+                        Text(titles[idx])
+                            .fontWeight(selected == idx ? .bold : .regular)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+            .background(Color(UIColor.secondarySystemBackground))
+
+            GeometryReader { geo in
+                Rectangle()
+                    .frame(width: geo.size.width / CGFloat(titles.count), height: 2)
+                    .offset(x: geo.size.width * CGFloat(selected) / CGFloat(titles.count), y: 0)
+                    .animation(.easeInOut, value: selected)
+            }
+            .frame(height: 2)
+
+            TabView(selection: $selected) {
+                ProfileScreen().tag(0)
+                PiecesList(added: true).tag(1)
+            }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+        }
+    }
 }
 

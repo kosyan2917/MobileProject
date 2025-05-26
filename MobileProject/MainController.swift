@@ -54,12 +54,26 @@ class MainController: UITabBarController {
         self.present(loginPage, animated: true)
     }
     
-    @objc private func handleLoginSuccess() {
-        tracksController.setTracksView()
-        profileController.setProfileScreen()
+    @objc private func handleLoginSuccess(_ notification: Notification) {
+        DispatchQueue.main.async {
+            guard let info = notification.userInfo else {
+                print("Нет данных в userInfo")
+                return
+            }
+            let accessToken = info["accessToken"] as! String
+            let refreshToken = info["refreshToken"] as! String
+            let username = info["username"] as! String
+            KeychainHelper.shared.save(accessToken, forKey: "accessToken")
+            KeychainHelper.shared.save(refreshToken, forKey: "refreshToken")
+            KeychainHelper.shared.save(username, forKey: "username")
+            self.tracksController.setTracksView()
+            self.profileController.setProfileScreen()
+        }
     }
     
     @objc private func handleLogout() {
+        KeychainHelper.shared.delete(forKey: "accessToken")
+        KeychainHelper.shared.delete(forKey: "refreshToken")
         tracksController.setUnauthorizedView()
         presentLoginPage()
     }

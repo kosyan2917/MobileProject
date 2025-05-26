@@ -5,150 +5,122 @@
 //  Created by Никита Косянков on 12.12.2024.
 //
 
-import UIKit
+import SwiftUI
 import MapKit
-import CoreLocation
-class MapViewController: UIViewController {
 
+struct TrainingView: View {
     var filename: String
-    let mapView: MKMapView = {
-        let map = MKMapView()
-        map.translatesAutoresizingMaskIntoConstraints = false
-        map.overrideUserInterfaceStyle = .dark
-        return map
-    }()
-    
-    init(filename: String) {
-        self.filename = filename
-        super.init(nibName: nil, bundle: nil)
-    }
-    
-    required init?(coder: NSCoder) {
-        return nil
-    }
-    
-
-    
-    let gpxParser: GPXParser = GPXParser()
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        // Do any additional setup after loading the view.
-        mapView.delegate = self
-        setMapConstraints()
-//        makeDotsFromFile(filename: "fells_loop")
-        Task {
-            await makeDotsFromQuery()
-        }
-    }
-
-    func setMapConstraints() {
-        view.addSubview(mapView)
-        NSLayoutConstraint.activate([
-            mapView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            mapView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            mapView.leftAnchor.constraint(equalTo: view.leftAnchor),
-            mapView.rightAnchor.constraint(equalTo: view.rightAnchor)
-        ])
-    }
-    
-    func draw(data: Data) {
-        gpxParser.parseXML(data: data)
-        let waypoints = gpxParser.wayPoints
-        let routePoints = gpxParser.routePoints
-        for coordinate in waypoints {
-            let annotation = MKPointAnnotation()
-            annotation.coordinate = coordinate
-            annotation.title = "Waypoint"
-            mapView.addAnnotation(annotation)
-        }
-        if !routePoints.isEmpty {
-            let polyline = MKPolyline(coordinates: routePoints, count: routePoints.count)
-            mapView.addOverlay(polyline)
-            let allCoordinates = waypoints + routePoints
-            let polylineRegion = MKCoordinateRegion(
-                center: allCoordinates.first ?? CLLocationCoordinate2D(),
-                latitudinalMeters: 5000,
-                longitudinalMeters: 5000
-            )
-            mapView.setRegion(polylineRegion, animated: true)
-        }
-    }
-    
-    func makeDotsFromQuery() async {
-        do {
-            print(filename)
-            let data = try await apiService.getGPX(file: filename)
-            print(data)
-            draw(data: data)
-        } catch {
-            print("\(error.localizedDescription)")
-        }
-    }
-    
-    
-    func makeDotsFromFile(filename: String) {
-        do {
-            let data = try gpxParser.loadFile(filename: filename)
-            draw(data: data)
-        } catch {
-            print("Error file reading a file")
-
+    var colors: [Color] = [Color.blue, Color.green, Color.yellow, Color.orange, Color.pink]
+    @State var isLoading = true
+    @State var time: String = "00:00:00"
+    @State var pace: Double = 0
+    @State var distance: Double = 0
+    @State var createdAt: Date?
+    @State var locations2d: [CLLocationCoordinate2D] = []
+    @State var errorText: String?
+    @State var piecesStats: [PieceStats] = []
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                if isLoading {
+                    Text("Загрузка...")
+                } else if let error = errorText {
+                    Text(error)
+                } else {
+                    Text("Тренировка от \(createdAt ?? Date(), style: .date)")
+                        .font(.title2)
+                    HStack(spacing: 16) {
+                        MetricView(title: "Время", value: time)
+                        MetricView(title: "Средняя скорость", value: String(format: "%.2f km/h", pace))
+                        MetricView(title: "Дистанция", value: String(format: "%.2f km", distance))
+                    }
+                    .padding(.horizontal)
+                    .padding(.top)
+                    Text("Маршрут:")
+                        .font(.title2)
+                    Map() {
+                        MapPolyline(coordinates: locations2d, contourStyle: .straight)
+                            .stroke(Color.red, lineWidth: 5)
+                        ForEach(piecesStats.indices, id: \.self) { index in
+                            MapPolyline(coordinates: piecesStats[index].coords, contourStyle: .straight)
+                                .stroke(colors[index], lineWidth: 5)
+                        }
+                    }
+                    .frame(height: 400)
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                    Text("Пройденные участки")
+                        .font(.title2)
+                    VStack {
+                        ForEach(piecesStats, id: \.name) { stat in
+                            VStack(alignment: .leading) {
+                                Text(stat.name)
+                                    .font(.title3)
+                                Text("Время: \(formatTime(totalSeconds: stat.time))")
+                                    .font(.title3)
+                                Map() {
+                                    MapPolyline(coordinates: stat.coords, contourStyle: .straight)
+                                        .stroke(Color.red, lineWidth: 5)
+                                }
+                                .cornerRadius(12)
+                                .padding(.horizontal)
+                                .frame(height: 400)
+                            }
+                        }
+                    }
+                }
+            }
+            .task {
+                isLoading = true
+                guard let stats = await CoreDataManager.shared.getTrainingStats(filename: filename) else {
+                    errorText = "Не удалось загрузить данные о тренировке"
+                    return
+                }
+                time = formatTime(totalSeconds: stats.time)
+                pace = stats.distance / Double(stats.time) * 3600
+                distance = stats.distance
+                createdAt = stats.createdAt
+                locations2d = stats.coords
+                do {
+                    let pstats = try await apiService.calculatePieces(filename: filename)
+                    print(pstats)
+                    for stat in pstats {
+                        let pieceGpx = try await apiService.getStatic(file: stat.path)
+                        let pieceCoords = GPXManager.shared.parseXML(data: pieceGpx)
+                        piecesStats.append(PieceStats(name: stat.name, time: stat.time, coords: pieceCoords))
+                    }
+                } catch {
+                    errorText = "Произошла ошибка при расчете участков"
+                    print(error.localizedDescription)
+                }
+                isLoading = false
+            }
         }
     }
 }
 
-class GPXParser: NSObject, XMLParserDelegate {
-    
-    var wayPoints: [CLLocationCoordinate2D] = []
-    var routePoints: [CLLocationCoordinate2D] = []
-    
-    func loadFile(filename: String) throws -> Data {
-        guard let filePath = Bundle.main.path(forResource: filename, ofType: "gpx") else {throw parsingError.noSuchFile(file: filename)}
-        guard let data = FileManager.default.contents(atPath: filePath) else {
-            throw parsingError.readingError(file: filename)
-        }
-        return data
-    }
-    
-    func parseXML(data: Data) {
-        let parser = XMLParser(data: data)
-        parser.delegate = self
-        wayPoints = []
-        routePoints = []
-        parser.parse()
-    }
-    
-    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String:String] = [:]) {
-        if elementName == "wpt",
-           let latString = attributeDict["lat"],
-           let lonString = attributeDict["lon"],
-           let lat = Double(latString),
-           let lon = Double(lonString) {
-            let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-            wayPoints.append(coordinate)
-        } else if elementName == "trkpt",
-                  let latString = attributeDict["lat"],
-                  let lonString = attributeDict["lon"],
-                  let lat = Double(latString),
-                  let lon = Double(lonString) {
-            let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-            routePoints.append(coordinate)
-        }
-    }
-    
+struct PieceStats {
+    var name: String
+    var time: Int
+    var coords: [CLLocationCoordinate2D]
 }
 
-extension MapViewController: MKMapViewDelegate {
-    func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-        if let polyline = overlay as? MKPolyline {
-            let renderer = MKPolylineRenderer(polyline: polyline)
-            renderer.strokeColor = .red
-            renderer.lineWidth = 5
-            return renderer
-        }
-        return MKOverlayRenderer(overlay: overlay)
-    }
+func formatTime(totalSeconds: Int) -> String {
+    let hours = totalSeconds / 3600
+    let minutes = (totalSeconds % 3600) / 60
+    let seconds = totalSeconds % 60
+    return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+}
+
+func formatDateFromUnixTimestamp(
+    _ secondsSince1970: TimeInterval,
+    format: String = "yyyy-MM-dd HH:mm:ss"
+) -> String {
+    let date = Date(timeIntervalSince1970: secondsSince1970)
+    let formatter = DateFormatter()
+    formatter.dateFormat = format
+    formatter.timeZone = .current
+    return formatter.string(from: date)
 }
 
 enum GPXError: Error {

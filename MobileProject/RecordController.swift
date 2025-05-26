@@ -73,8 +73,15 @@ extension RecordController {
         track.time = Int64(time)
         track.user = JWTHelper.shared.getUser()
         CoreDataManager.shared.saveContext()
-        let gpx = GPXGenerator().generateGPX(from: locations)
+        let gpx = GPXManager.shared.generateGPX(from: locations)
         GPXFileManager.shared.saveTrackFile(fileName: name, data: gpx)
+        Task {
+            do {
+                try await apiService.sendFile(file: gpx, name: name)
+            } catch {
+                print("Ошибка при отправке результата на сервер")
+            }
+        }
         let transition = CATransition()
         transition.type = .push
         transition.subtype = .fromLeft

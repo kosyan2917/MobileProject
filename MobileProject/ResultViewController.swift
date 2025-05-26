@@ -15,8 +15,8 @@ protocol ResultViewControllerDelegate: AnyObject {
 }
 
 final class ResultViewController: UIViewController {
-    private let gpxParser = GPXParser()
-    private let gpxGenerator = GPXGenerator()
+    private let gpxParser = GPXManager.shared
+    private let gpxGenerator = GPXManager.shared
     weak var delegate: ResultViewControllerDelegate?
     private let distance: Double
     private let time: String

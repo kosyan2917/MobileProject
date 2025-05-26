@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import SwiftUI
 
 class LoggedTracksController: UIViewController {
     
@@ -56,6 +57,7 @@ class LoggedTracksController: UIViewController {
             syncButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
             syncButton.widthAnchor.constraint(equalToConstant: 250)
         ])
+        syncButton.addTarget(self, action: #selector(sync), for: .touchUpInside)
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -93,7 +95,20 @@ class LoggedTracksController: UIViewController {
         tableView.dataSource = self
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "FileCell")
     }
-
+    @objc private func sync() {
+        Task {
+            do {
+                try await apiService.sync()
+                DispatchQueue.main.async{
+                    self.tableView.reloadData()
+                }
+            } catch APIErrors.Unauthorized {
+                NotificationCenter.default.post(name: .unauthorized, object: nil)
+            } catch {
+                print("Ошибка в getFiles \(error.localizedDescription)")
+            }
+        }
+    }
     
     private func showAlert(message: String) {
         let alert = UIAlertController(title: "Уведомление", message: message, preferredStyle: .alert)
@@ -115,7 +130,7 @@ extension LoggedTracksController: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let mapVC = MapViewController(filename: files[indexPath.row].name!)
+        let mapVC = UIHostingController(rootView: TrainingView(filename: files[indexPath.row].name!))
         navigationController?.pushViewController(mapVC, animated: true)
     }
 }

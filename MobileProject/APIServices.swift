@@ -18,7 +18,8 @@ enum APIErrors: Error {
 }
 
 class NewAPIService {
-    private let baseUrl = "http://localhost:1337/api/"
+    let baseUrl = "http://localhost:1337/api/"
+    let staticUrl = "http://localhost:1337/static/"
     
     private func refresh() async throws {
         guard let url = URL(string: baseUrl+"auth/refresh") else { throw APIErrors.BadURL }
@@ -59,6 +60,24 @@ class NewAPIService {
         } catch {
             return false
         }
+    }
+    
+    func getStatic(file: String) async throws -> Data {
+        guard let url = URL(string: staticUrl+file) else { throw APIErrors.BadURL }
+        print(url)
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse {
+            if httpResponse.statusCode == 400 || httpResponse.statusCode == 401 {
+                throw APIErrors.Unauthorized
+            }
+            else if httpResponse.statusCode != 200 {
+                throw APIErrors.BadServerResponse
+            }
+        }
+        return data
     }
     
     private func get(path: String, auth: Bool = false) async throws -> Data {
@@ -118,6 +137,12 @@ class NewAPIService {
         return data
     }
     
+    func getProfile(user: String) async throws -> Profile {
+        let response = try await get(path: "profile/\(user)", auth: true)
+        let profile = try JSONDecoder().decode(Profile.self, from: response)
+        return profile
+    }
+    
     func getFiles() async throws -> [Tracks] {
         var fetchRequest: NSFetchRequest<Tracks> = Tracks.fetchRequest()
         var tracksArray = try CoreDataManager.shared.context.fetch(fetchRequest)
@@ -162,8 +187,8 @@ class NewAPIService {
         do {
             let reponse = try await post(path: "auth/login", body: body)
             let tokens = try JSONDecoder().decode(tokens.self, from: reponse)
-            KeychainHelper.shared.save(tokens.accessToken, forKey: "accessToken")
-            KeychainHelper.shared.save(tokens.refreshToken, forKey: "refreshToken")
+            let userInfo: [String: String] = ["accessToken": tokens.accessToken, "refreshToken": tokens.refreshToken, "username": username]
+            NotificationCenter.default.post(name: .loginSuccess, object: nil, userInfo: userInfo)
         } catch APIErrors.Unauthorized {
             throw APIErrors.IncorrectLoginData
         }
@@ -185,6 +210,75 @@ class NewAPIService {
         throw APIErrors.NoData
     }
     
+    func getPieces(added: Bool) async throws -> [PiecesData] {
+        let response: Data
+        if added {
+            response = try await get(path: "pieces/added", auth: true)
+        } else {
+            response = try await get(path: "pieces/all", auth: true)
+        }
+        let result = try JSONDecoder().decode([PiecesData].self, from: response)
+        return result
+    }
+    
+    func calculatePieces(filename: String) async throws -> [PiecesStatsData] {
+        let track = TracksNames(name: filename + ".gpx")
+        let body = try JSONEncoder().encode(track)
+        let response = try await post(path: "pieces/calculate", body: body, auth: true)
+        let result = try JSONDecoder().decode([PiecesStatsData].self, from: response)
+        return result
+    }
+    
+    func sendFile(file: Data, name: String) async throws {
+        guard let url = URL(string: baseUrl+"tracks/upload") else { throw APIErrors.BadURL }
+        if !checkAuth() {
+            do {
+                try await refresh()
+            } catch {
+                print("Ошибка в рефреше")
+            }
+        }
+        guard let token = KeychainHelper.shared.get(forKey: "accessToken") else { throw APIErrors.Unauthorized }
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var body = Data()
+
+        let mimeType = "application/gpx+xml"
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append(
+          "Content-Disposition: form-data; name=\"file\"; filename=\"\(name)\"\r\n"
+          .data(using: .utf8)!
+        )
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(file)
+        body.append("\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        var request = URLRequest(url: url)
+        request.setValue(token, forHTTPHeaderField: "Authorization")
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)",
+                         forHTTPHeaderField: "Content-Type")
+        request.httpBody = body
+        let (_, response) = try await URLSession.shared.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            print(http.statusCode)
+            throw APIErrors.BadServerResponse
+        }
+    }
+    
+    func sync() async throws {
+        let files = await CoreDataManager.shared.getNotPublishedTracks()
+        for file in files {
+            guard let fileData = GPXFileManager.shared.readTrackFile(fileName: file) else {
+                continue
+            }
+            try await sendFile(file: fileData, name: file)
+        }
+    }
+}
+
+struct Profile: Codable {
+    var name: String
+    var image: String
 }
 
 struct LoginData : Codable {
@@ -214,6 +308,18 @@ struct TracksBody: Codable {
 
 struct Files: Codable {
     var files: [Track]
+}
+
+struct PiecesData: Codable {
+    var name: String
+    var filename: String
+    var length: Double
+}
+
+struct PiecesStatsData: Codable {
+    var name: String
+    var path: String
+    var time: Int
 }
 
 
